@@ -51,15 +51,17 @@ def sendFile():
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    token = request.cookies.get('jwt')
     if request.method == 'POST':
         username = request.form['username']
-        pw = request.form['username']
+        pw = request.form['password']
 
         if not (username or pw):
+            flash("No input found", "error")
             return redirect(url_for('login'))
         
         #user is signing up
-        if request.form['sign-up'] == True:
+        if request.form.get('sign-up') == 'True':
             user_collection.insert_one({
                 "user" : username,
                 "pw" : pw
@@ -67,9 +69,12 @@ def login():
         else:
             user = user_collection.find_one({"user": username})
             if user and user['pw'] == pw:
-                token = generate_token(user)
+                token = generate_token(username)
                 resp = make_response(redirect(url_for('profile')))
                 resp.set_cookie('jwt', token)
+            else:
+                flash("Invalid username/password", "error")
+                return redirect(url_for('login'))
 
     #if valid token redirect to profile
     if token:
@@ -97,3 +102,6 @@ def profile():
     user = user_collection.find_one({"user": username})
 
     return render_template('profile.html', user=[user])
+
+if __name__ == '__main__':
+    app.run(debug=True)

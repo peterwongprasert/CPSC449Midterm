@@ -6,13 +6,23 @@
     <title>Document</title>
 </head>
 <body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul>
+            {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
     <h1>Login</h1>
-    <form action="./login" method="POST">
+    <form action="/" method="POST">
         <input placeholder="username" name="username">
         <input placeholder="password" name="password">
         <br>
         <label>Sign up</label>
-        <input type="checkbox" name="signup" value="True">
+        <input type="checkbox" name="sign-up" value="True">
         <br>
         <button type="submit">login</button>
     </form>
