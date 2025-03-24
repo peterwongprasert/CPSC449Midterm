@@ -18,7 +18,7 @@ JWT_EXPIRATION = 1 #1 HR
 def generate_token(username):
     payload = {
         "username" : username,
-        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.delta(hours = JWT_EXPIRATION)
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=JWT_EXPIRATION)
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
     return token
@@ -72,6 +72,7 @@ def login():
                 token = generate_token(username)
                 resp = make_response(redirect(url_for('profile')))
                 resp.set_cookie('jwt', token)
+                return resp
             else:
                 flash("Invalid username/password", "error")
                 return redirect(url_for('login'))
@@ -89,7 +90,7 @@ def profile():
     token = request.cookies.get('jwt')
 
     if not token:
-        flash("No token found", "error")
+        flash(token, "error")
         return redirect(url_for('login'))
     
     payload = decode_token(token)
@@ -101,7 +102,11 @@ def profile():
     username = payload['username']
     user = user_collection.find_one({"user": username})
 
-    return render_template('profile.html', user=[user])
+    return render_template('profile.html', user=user)
+
+@app.route('/delete/<id>', methods=['GET', 'POST'])
+def delete(id):
+    return
 
 if __name__ == '__main__':
     app.run(debug=True)
