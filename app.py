@@ -58,6 +58,7 @@ def login():
         if not (username or pw):
             return redirect(url_for('login'))
         
+        #user is signing up
         if request.form['sign-up'] == True:
             user_collection.insert_one({
                 "user" : username,
