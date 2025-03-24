@@ -95,3 +95,5 @@ def profile():
     #valid user login proceeding to fetch user and display info
     username = payload['username']
     user = user_collection.find_one({"user": username})
+
+    return render_template('profile.html', user=[user])

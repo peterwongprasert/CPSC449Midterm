@@ -8,6 +8,10 @@
 <body>
     <img src="uploads/{{ user['picture'] }}">
     <a href="{{ url_for('delete', id = user['_id']) }}">Remove </a>
+    <form action="/sendFile" method="POST" enctype="multipart/form-data"></form>
+        <input type="file" name="file"/><br>
+        <input type="submit"/>
+    </form>
     <label>{{ user.username }}</label>
 </body>
 </html>
