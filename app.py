@@ -6,71 +6,92 @@ import datetime
 import os
 from werkzeug.utils import secure_filename
 
-app= Flask(__name__)
+app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb://localhost:27017/midterm"
 mongo = PyMongo(app)
 db = mongo.db
 user_collection = db['midterm']
+items_collection = db['items']
 
 JWT_SECRET = 'my_secret_jwt_key'
-JWT_EXPIRATION = 1 #1 HR
+JWT_EXPIRATION = 1  # 1 HR
 
-# file upload code
 app.secret_key = 'super_secret'
-app.config['extentions'] = ['.jpg', '.jpeg', '.pdf', '.png']
+app.config['extensions'] = ['.jpg', '.jpeg', '.pdf', '.png']
 app.config['UPLOADS'] = 'uploads'
 app.config['SECRET_KEY'] = 'super_secret'
+MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
+
+if not os.path.exists(app.config['UPLOADS']):
+    os.makedirs(app.config['UPLOADS'])
 
 def generate_token(username):
+    """Generates a JWT token for authentication"""
     payload = {
-        "username" : username,
+        "username": username,
         "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=JWT_EXPIRATION)
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
     return token
 
 def decode_token(token):
+    """Decodes a JWT token and handles expiration or invalid token errors"""
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         return payload
     except jwt.ExpiredSignatureError:
-        flash("Session exipired. Please log in again", "error")
         return None
     except jwt.InvalidTokenError:
-        flash("Invalid token. Please log in again", "error")
-
+        return None
 
 def update_user_picture(filename, id):
-    obj = {}
-    obj['picture'] = filename
-
+    """Updates user profile picture in the database"""
     result = user_collection.update_one(
         {"_id": ObjectId(id)},
-        {"$set": obj}
+        {"$set": {"picture": filename}}
     )
+    return result.matched_count > 0
 
-    if result.matched_count > 0:
-        return jsonify({"message": "User updated successfully"})
-    else:
-        return jsonify({"error": "User not found"}), 404
-    
+def allowed_file_size(file):
+    """Checks if the uploaded file size is within the allowed limit"""
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    return size <= MAX_FILE_SIZE
+
+# Error Handlers
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({"error": "Bad Request", "message": "Invalid input"}), 400
+
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify({"error": "Unauthorized", "message": "Authentication required"}), 401
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Not Found", "message": "Resource not found"}), 404
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    return jsonify({"error": "Internal Server Error", "message": "Something went wrong"}), 500
+
+# Authentication and User Login
 @app.route('/', methods=['GET', 'POST'])
 def login():
     token = request.cookies.get('jwt')
+    user_count = user_collection.count_documents({})
+    
     if request.method == 'POST':
         username = request.form['username']
         pw = request.form['password']
-
-        if not (username or pw):
+        
+        if not username or not pw:
             flash("No input found", "error")
             return redirect(url_for('login'))
         
-        #user is signing up
         if request.form.get('sign-up') == 'True':
-            user_collection.insert_one({
-                "user" : username,
-                "pw" : pw
-            })
+            user_collection.insert_one({"user": username, "pw": pw})
         else:
             user = user_collection.find_one({"user": username})
             if user and user['pw'] == pw:
@@ -81,75 +102,86 @@ def login():
             else:
                 flash("Invalid username/password", "error")
                 return redirect(url_for('login'))
-
-    #if valid token redirect to profile
+    
     if token:
         payload = decode_token(token)
         if payload:
             return redirect(url_for('profile'))
+    
+    return render_template('login.html', user_count=user_count)
 
-    return render_template('login.html')
-
-@app.route('/sendFile/<id>',methods=['POST','GET'])
+# File Upload Handling
+@app.route('/sendFile/<id>', methods=['POST'])
 def sendFile(id):
-    delete_picture(id)
+    """Handles file uploads with validation for size and type"""
     uploaded_file = request.files['file']
-    if uploaded_file.filename != '':
+    if uploaded_file.filename:
         filename = secure_filename(uploaded_file.filename)
-        if os.path.splitext(filename)[1] in app.config['extentions']:
-            uploaded_file.save(os.path.join(app.config['UPLOADS'],filename))
-            # return 'correct'
-            update_user_picture(filename, id)
+        file_extension = os.path.splitext(filename)[1]
+
+        if file_extension not in app.config['extensions']:
+            flash("Invalid file format", "error")
             return redirect(url_for('profile'))
-    return ''
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOADS'], filename)
-
-@app.route('/profile', methods=['GET', 'POST'])
-def profile():
-    token = request.cookies.get('jwt')
-
-    if not token:
-        flash(token, "error")
-        return redirect(url_for('login'))
+        
+        if not allowed_file_size(uploaded_file):
+            flash("File size exceeds the 2MB limit", "error")
+            return redirect(url_for('profile'))
+        
+        uploaded_file.save(os.path.join(app.config['UPLOADS'], filename))
+        update_user_picture(filename, id)
+        return redirect(url_for('profile'))
     
-    payload = decode_token(token)
-    if not payload:
-        flash('Invalid token')
-        return redirect(url_for('login'))
-    
-    #valid user login proceeding to fetch user and display info
-    username = payload['username']
-    user = user_collection.find_one({"user": username})
-
-    return render_template('profile.html', user=user)
-
-@app.route('/delete/<id>', methods=['GET', 'POST'])
-def delete_picture(id):
-    user = user_collection.find_one({"_id": ObjectId(id)})
-
-    if user:
-        picture = user.get('picture')
-
-        if picture:
-            file_path = os.path.join(app.config['UPLOADS'], picture)
-
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                print(f"Deleted file: {file_path}")
-            else:
-                print("File not found")
-
+    flash("No file uploaded", "error")
     return redirect(url_for('profile'))
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    resp = make_response(redirect(url_for('login')))
-    resp.delete_cookie('jwt')
-    return resp
+# Public Route
+@app.route('/public-info', methods=['GET'])
+def public_info():
+    """Returns public information that does not require authentication"""
+    data = [
+        {"title": "Welcome", "description": "This is a public API endpoint"},
+        {"title": "API Status", "description": "Up and running"}
+    ]
+    return jsonify(data), 200
+
+# CRUD Operations for Items
+@app.route('/items', methods=['GET'])
+def get_items():
+    """Retrieves all items from the database"""
+    items = list(items_collection.find({}, {"_id": 0}))
+    return jsonify(items), 200
+
+@app.route('/items', methods=['POST'])
+def create_item():
+    """Creates a new item"""
+    data = request.json
+    if not data or "name" not in data:
+        return jsonify({"error": "Invalid input"}), 400
+    
+    item = {"name": data["name"], "description": data.get("description", "")}
+    items_collection.insert_one(item)
+    return jsonify({"message": "Item added"}), 201
+
+@app.route('/items/<string:name>', methods=['PUT'])
+def update_item(name):
+    """Updates an existing item"""
+    data = request.json
+    result = items_collection.update_one({"name": name}, {"$set": data})
+    
+    if result.matched_count == 0:
+        return jsonify({"error": "Item not found"}), 404
+    
+    return jsonify({"message": "Item updated"}), 200
+
+@app.route('/items/<string:name>', methods=['DELETE'])
+def delete_item(name):
+    """Deletes an item from the database"""
+    result = items_collection.delete_one({"name": name})
+    
+    if result.deleted_count == 0:
+        return jsonify({"error": "Item not found"}), 404
+    
+    return jsonify({"message": "Item deleted"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)

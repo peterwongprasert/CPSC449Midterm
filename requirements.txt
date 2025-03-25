@@ -1,0 +1,8 @@
+Flask
+Flask-PyMongo
+PyJWT
+Werkzeug
+pymongo
+bson
+gunicorn
+python-dotenv
