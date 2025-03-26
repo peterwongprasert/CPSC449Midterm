@@ -106,7 +106,7 @@ def login():
         if request.form.get('sign-up') == 'True':
             user_collection.insert_one({
                 "user" : username,
-                "pw" : pw
+                "pw" : password
             })
         else:
         # Validate login credentials (this should be done securely)
