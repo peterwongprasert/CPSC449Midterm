@@ -15,6 +15,12 @@ app.config['EXTENSIONS'] = ['.jpg', '.jpeg', '.pdf', '.png']
 JWT_SECRET = os.getenv('JWT_SECRET', 'my_secret_jwt_key')
 JWT_EXPIRATION = timedelta(hours=1)  # 1 hour
 
+### BE SURE TO CHANGE ROUTING IF YOU ARE PULLING ====================================
+# MOGO URI = YOUR DB NAME
+# user <--> username
+# pw <--> password
+# ===================================================================================
+
 # Initialize PyMongo (assuming MongoDB is used)
 # You should configure this with your MongoDB URI
 app.config["MONGO_URI"] = os.getenv('MONGO_URI', "mongodb://localhost:27017/midterm")
@@ -191,3 +197,5 @@ def users():
 # Main entry point
 if __name__ == '__main__':
     app.run(debug=True)
+
+### TODO: Add max size capacity, delete images once we update user picture, add user count in login screen
