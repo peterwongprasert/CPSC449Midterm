@@ -15,7 +15,11 @@ app.config['EXTENSIONS'] = ['.jpg', '.jpeg', '.png']
 JWT_SECRET = os.getenv('JWT_SECRET', 'my_secret_jwt_key')
 JWT_EXPIRATION = timedelta(hours=1)  # 1 hour
 
-# Initialize PyMongo (assuming MongoDB is used)
+# Ensure upload directory exists
+if not os.path.exists(app.config['UPLOADS']):
+    os.makedirs(app.config['UPLOADS'])
+
+# Initialize PyMongo
 app.config["MONGO_URI"] = os.getenv('MONGO_URI', "mongodb://localhost:27017/your_database")
 mongo = PyMongo(app)
 user_collection = mongo.db.users
@@ -30,20 +34,23 @@ def generate_token(username):
     return token
 
 # Route for uploading files
-@app.route('/sendFile/<id>', methods=['POST', 'GET'])
+@app.route('/sendFile/<id>', methods=['POST'])
 def sendFile(id):
-    if request.method == 'POST':
-        uploaded_file = request.files['file']
-        if uploaded_file.filename != '':
-            filename = secure_filename(uploaded_file.filename)
-            if os.path.splitext(filename)[1] in app.config['EXTENSIONS']:
-                uploaded_file.save(os.path.join(app.config['UPLOADS'], filename))
-                update_user_picture(filename, id)  # Update profile picture in DB
-                flash('File uploaded successfully', 'success')
-            else:
-                flash('Invalid file extension. Please upload .jpg, .jpeg, or .png', 'error')
-        else:
-            flash('No file selected.', 'error')
+    uploaded_file = request.files.get('file')
+    
+    if not uploaded_file or uploaded_file.filename == '':
+        flash('No file selected.', 'error')
+        return redirect(url_for('profile'))
+    
+    filename = secure_filename(uploaded_file.filename)
+    if os.path.splitext(filename)[1].lower() in app.config['EXTENSIONS']:
+        file_path = os.path.join(app.config['UPLOADS'], filename)
+        uploaded_file.save(file_path)
+        update_user_picture(filename, id)  # Update profile picture in DB
+        flash('File uploaded successfully', 'success')
+    else:
+        flash('Invalid file extension. Please upload .jpg, .jpeg, or .png', 'error')
+    
     return redirect(url_for('profile'))
 
 # Update user's profile picture in DB
@@ -52,13 +59,10 @@ def update_user_picture(filename, user_id):
         {"_id": ObjectId(user_id)},
         {"$set": {"picture": filename}}
     )
-    if result.matched_count > 0:
-        return jsonify({"message": "User picture updated successfully"})
-    else:
-        return jsonify({"error": "User not found"}), 404
+    return result.matched_count > 0
 
 # Route for displaying profile
-@app.route('/profile', methods=['GET', 'POST'])
+@app.route('/profile')
 def profile():
     token = request.cookies.get('jwt')
     if not token:
@@ -67,14 +71,15 @@ def profile():
 
     try:
         user_data = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-        print(f"User data: {user_data}")  # Debugging line
-
         user = user_collection.find_one({"username": user_data['username']})
+        
         if user:
+            # If user has no profile picture, set a default one
+            user['picture'] = user.get('picture', 'default.jpg')
             return render_template('profile.html', user=user)
-        else:
-            flash('User not found.', 'error')
-            return redirect(url_for('login'))
+        
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
     except jwt.ExpiredSignatureError:
         flash('Session expired. Please log in again.', 'error')
         return redirect(url_for('login'))
@@ -98,7 +103,6 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        # Validate login credentials (this should be done securely)
         user = user_collection.find_one({"username": username})
         if user and check_password_hash(user['password'], password):
             token = generate_token(username)
@@ -111,17 +115,17 @@ def login():
     return render_template('login.html')
 
 # Route to delete user's profile picture
-@app.route('/delete/<id>', methods=['GET', 'POST'])
+@app.route('/delete/<id>', methods=['GET'])
 def delete(id):
     user = user_collection.find_one({"_id": ObjectId(id)})
     if user:
         picture = user.get('picture')
-        if picture:
+        if picture and picture != "default.jpg":
             file_path = os.path.join(app.config['UPLOADS'], picture)
             if os.path.exists(file_path):
                 os.remove(file_path)
-                update_user_picture(None, id)  # Remove picture from DB
-                flash(f"Deleted file: {file_path}", 'success')
+                update_user_picture("default.jpg", id)  # Reset to default
+                flash("Profile picture removed.", 'success')
             else:
                 flash("File not found", 'error')
         return redirect(url_for('profile'))
@@ -142,21 +146,16 @@ def register():
         password = request.form['password']
         password_hash = generate_password_hash(password, method='pbkdf2:sha256')
 
-        print(f"Attempting to register user: {username}")  # Debugging line
-
-        # Check if the username already exists
         if user_collection.find_one({"username": username}):
             flash('Username already exists.', 'error')
-            print(f"Username {username} already exists.")  # Debugging line
         else:
-            user_collection.insert_one({"username": username, "password": password_hash})
+            user_collection.insert_one({"username": username, "password": password_hash, "picture": "default.jpg"})
             flash('User registered successfully.', 'success')
-            print(f"User {username} registered successfully.")  # Debugging line
             return redirect(url_for('login'))
     
     return render_template('register.html')
 
-# Route to get public list of users
+# Route to get a public list of users
 @app.route('/users')
 def users():
     all_users = user_collection.find()
