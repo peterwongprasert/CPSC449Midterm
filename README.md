@@ -23,11 +23,11 @@ Ensure you have the following installed:
 - **Flask-PyMongo**: Flask extension to interact with MongoDB.
 
 #### Dependencies
-Flask==3.1.0                         # Core framework
-Flask-PyMongo==3.0.1                 # MongoDB integration
-pymongo==4.11.3                      # MongoDB driver
-PyJWT==2.9.0                         # JWT token encoding/decoding
-Werkzeug==3.1.3                      # Utility functions
+Flask==3.1.0                         
+Flask-PyMongo==3.0.1                 
+pymongo==4.11.3                      
+PyJWT==2.9.0                         
+Werkzeug==3.1.3                      
 
 ## Setup Instructions
 
