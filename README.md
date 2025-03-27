@@ -43,7 +43,7 @@ How to run locally:
   cd "Path\to\mongod.exe"
   .\mongod --dbpath "Path\to\MongoDB\data"
 ```
-*Note: If you do not have a data folder for MongoDB you must manually create it
+*Note: If you do not have a data folder for MongoDB, you must manually create it.
 
 ### Step 3: Run app.py
 ```bash
