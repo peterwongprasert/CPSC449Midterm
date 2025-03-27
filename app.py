@@ -27,10 +27,16 @@ mongo = PyMongo(app)
 db = mongo.db
 user_collection = db['midterm']
 
+
+def error_response(message, status_code):
+    """Returns consistent error response format"""
+    return jsonify({"error": message, "status": status_code}), status_code
+
 # Helper function to generate JWT token
-def generate_token(username):
+def generate_token(username, id):
     payload = {
         "username": username,
+        "id": id,
         "exp": datetime.utcnow() + JWT_EXPIRATION
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
@@ -55,10 +61,10 @@ def sendFile(id):
             user_filename = f"{id}-{filename}"
             if os.path.splitext(filename)[1] in app.config['EXTENSIONS']:
 
+                delete_picture(id)
 
                 uploaded_file.save(os.path.join(app.config['UPLOADS'], user_filename))
                 update_user_picture(user_filename, id)
-                delete_picture(id)
 
 
                 return '''
@@ -130,7 +136,7 @@ def login():
             user = user_collection.find_one({"username": username})
             # if user and check_password_hash(user['pw'], password):
             if user and user['password'] == password:
-                token = generate_token(username)
+                token = generate_token(username, str(user.get('_id')))
                 resp = make_response(redirect(url_for('profile')))
                 resp.set_cookie('jwt', token)
                 return resp
@@ -166,7 +172,7 @@ def delete_picture(id):
         except jwt.InvalidTokenError:
             return jsonify({"error": "Unauthorized user"}), 401
         
-        if not payload['_id'] == id:
+        if not payload['id'] == id:
             return jsonify({"error": "Unauthorized user"}), 403
 
     user = user_collection.find_one({"_id": ObjectId(id)})
