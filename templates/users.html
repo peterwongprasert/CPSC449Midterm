@@ -51,17 +51,25 @@
         a:hover {
             text-decoration: underline;
         }
+        #bottom-links{
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Public User List</h1>
+        <h2>{{ count }} and counting!</h2>
         <ul>
             {% for user in users %}
                 <li>{{ user['username'] }}</li>
             {% endfor %}
         </ul>
-        <a href="{{ url_for('profile') }}">Back to Profile</a>
+        <div id="bottom-links">
+            <a href="{{ url_for('profile') }}">Back to Profile</a>
+            <a href="{{ url_for('login') }}">Back to Homepage</a>
+        </div>
     </div>
 </body>
 </html>

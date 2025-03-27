@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'super_secret')
 app.config['UPLOADS'] = 'uploads'
 app.config['EXTENSIONS'] = ['.jpg', '.jpeg', '.png']
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 JWT_SECRET = os.getenv('JWT_SECRET', 'my_secret_jwt_key')
 JWT_EXPIRATION = timedelta(hours=1)  # 1 hour
 
@@ -39,16 +40,27 @@ def generate_token(username):
 # Route for uploading files
 @app.route('/sendFile/<id>', methods=['POST', 'GET'])
 def sendFile(id):
-    delete_picture(id)
     if request.method == 'POST':
         uploaded_file = request.files['file']
+
+        uploaded_file.seek(0, os.SEEK_END)
+        file_size = uploaded_file.tell()
+        uploaded_file.seek(0)
+
+        if file_size > app.config['MAX_CONTENT_LENGTH']:
+            return jsonify({"error": "File size too large. Maximum size is 10 MB."}), 413
+        
         if uploaded_file.filename != '':
             filename = secure_filename(uploaded_file.filename)
             user_filename = f"{id}-{filename}"
             if os.path.splitext(filename)[1] in app.config['EXTENSIONS']:
+
+
                 uploaded_file.save(os.path.join(app.config['UPLOADS'], user_filename))
                 update_user_picture(user_filename, id)
-                
+                delete_picture(id)
+
+
                 return '''
                 File uploaded successfully
                 <a href='/profile'>Return to profile</a>
@@ -163,7 +175,8 @@ def delete_picture(id):
     else:
         flash("User not found.", 'error')
         return redirect(url_for('profile'))
-
+    
+# delete the user profile
 @app.route('/delete_user/<id>', methods=['GET', 'POST'])
 def delete_user(id):
 
@@ -198,10 +211,15 @@ def register():
     
     return render_template('register.html')
 
+@app.route('/users', methods=['GET'])
+def users():
+    all_users = user_collection.find()
+    count = user_collection.count_documents({})
+    return render_template('users.html', users=all_users, count=count)
 
 #used for DB testing purposes only
-@app.route('/users', methods=['GET', 'POST'])
-def users():
+@app.route('/getAllUsers', methods=['GET', 'POST'])
+def getAllUsers():
     #we need to convert MongoDB collections into Python Dictionary
     users = list(user_collection.find())
 
