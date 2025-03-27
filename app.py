@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'super_secret')
 app.config['UPLOADS'] = 'uploads'
-app.config['EXTENSIONS'] = ['.jpg', '.jpeg', '.pdf', '.png']
+app.config['EXTENSIONS'] = ['.jpg', '.jpeg', '.png']
 JWT_SECRET = os.getenv('JWT_SECRET', 'my_secret_jwt_key')
 JWT_EXPIRATION = timedelta(hours=1)  # 1 hour
 
@@ -66,26 +66,26 @@ def update_user_picture(filename, user_id):
         {"_id": ObjectId(user_id)},
         {"$set": {"picture": filename}}
     )
-    if result.matched_count > 0:
-        return jsonify({"message": "User updated successfully"})
-    else:
-        return jsonify({"error": "User not found"}), 404
+    return result.matched_count > 0
 
 # Route for displaying profile
-@app.route('/profile', methods=['GET', 'POST'])
+@app.route('/profile')
 def profile():
     token = request.cookies.get('jwt')
     if not token:
+        flash('You are not logged in.', 'error')
         return redirect(url_for('login'))
 
     try:
         user_data = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         user = user_collection.find_one({"user": user_data['username']})
         if user:
+            # If user has no profile picture, set a default one
+            user['picture'] = user.get('picture', 'default.jpg')
             return render_template('profile.html', user=user)
-        else:
-            flash('User not found.', 'error')
-            return redirect(url_for('login'))
+        
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
     except jwt.ExpiredSignatureError:
         flash('Session expired. Please log in again.', 'error')
         return redirect(url_for('login'))
@@ -138,7 +138,7 @@ def delete_picture(id):
     user = user_collection.find_one({"_id": ObjectId(id)})
     if user:
         picture = user.get('picture')
-        if picture:
+        if picture and picture != "default.jpg":
             file_path = os.path.join(app.config['UPLOADS'], picture)
             if os.path.exists(file_path):
                 os.remove(file_path)

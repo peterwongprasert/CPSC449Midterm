@@ -9,9 +9,6 @@
     img{
         width: 100vw;
     }
-    #delete{
-        padding-left: 5px;
-    }
 </style>
 <body>
     <img src="{{ url_for('uploaded_file', filename=user['picture']) }}" alt="profile picture">
@@ -21,8 +18,7 @@
         <button type="submit">Submit</button>
     </form>
     <label>User: {{ user['user'] }}</label>
-    <a href="{{ url_for('delete_user', id = user['id']) }}" id="delete">Delete Profile</a>
-    <br>
+    <label>Picture: {{ user['picture'] }}</label>
     <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>
