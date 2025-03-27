@@ -4,21 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+        }
+        a, button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px;
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        a {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        a:hover {
+            background-color: #c82333;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input[type="file"] {
+            margin-top: 10px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        #delete{
+            position: relative;
+            left: 30%;
+        }
+    </style>
 </head>
-<style>
-    img{
-        width: 100vw;
-    }
-</style>
 <body>
-    <img src="{{ url_for('uploaded_file', filename=user['picture']) }}" alt="profile picture">
-    <a href="{{ url_for('delete_picture', id = user['_id']) }}">Remove </a>
-    <form action="{{ url_for('sendFile', id = user['_id']) }}" method="POST" enctype="multipart/form-data">
-        <input type="file" name="file"/><br>
-        <button type="submit">Submit</button>
-    </form>
-    <label>User: {{ user['user'] }}</label>
-    <label>Picture: {{ user['picture'] }}</label>
-    <a href="{{ url_for('logout') }}">Logout</a>
+    <div class="container">
+        <h1>Profile</h1>
+        <a href="{{ url_for('delete_user', id = user['_id']) }}" id="delete">Delete Profile</a>
+        <br>
+        {% if user.get('picture') %}
+            <img src="{{ url_for('uploaded_file', filename=user['picture']) }}" alt="Profile Picture">
+        {% else %}
+            <img src="{{ url_for('static', filename='default.jpg') }}" alt="Default Profile Picture">
+        {% endif %}
+        <br>
+        <a href="{{ url_for('delete_picture', id=user['_id']) }}">Remove Picture</a>
+        <form action="{{ url_for('sendFile', id=user['_id']) }}" method="POST" enctype="multipart/form-data">
+            <input type="file" name="file"><br>
+            <button type="submit">Upload New Picture</button>
+        </form>
+        
+        <label>User: {{ user['username'] }}</label>
+        <label>Picture: {{ user['picture'] if user.get('picture') else 'No picture uploaded' }}</label>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
 </body>
 </html>
