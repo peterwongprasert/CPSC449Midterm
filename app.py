@@ -27,11 +27,6 @@ mongo = PyMongo(app)
 db = mongo.db
 user_collection = db['midterm']
 
-
-def error_response(message, status_code):
-    """Returns consistent error response format"""
-    return jsonify({"error": message, "status": status_code}), status_code
-
 # Helper function to generate JWT token
 def generate_token(username, id):
     payload = {
@@ -76,6 +71,11 @@ def sendFile(id):
         else:
             flash('No file selected.', 'error')
     return ''
+
+@app.route('/error')
+def error_page():
+    return render_template('error.html')
+
 
 # Update user's profile picture
 def update_user_picture(filename, user_id):
@@ -173,7 +173,11 @@ def delete_picture(id):
             return jsonify({"error": "Unauthorized user"}), 401
         
         if not payload['id'] == id:
-            return jsonify({"error": "Unauthorized user"}), 403
+            flash("Unauthorized user.", "error")
+            return redirect(url_for('error_page'))
+    else:
+        flash("No token provided. Unauthorized access.", "error")
+        return redirect(url_for('error_page'))
 
     user = user_collection.find_one({"_id": ObjectId(id)})
     if user:
@@ -198,6 +202,23 @@ def delete_picture(id):
 # delete the user profile
 @app.route('/delete_user/<id>', methods=['GET', 'POST'])
 def delete_user(id):
+    token = request.cookies.get('jwt')
+    
+    if token:
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Unauthorized user"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Unauthorized user"}), 401
+        
+        if not payload['id'] == id:
+            flash("Unauthorized user.", "error")
+            return redirect(url_for('error_page'))
+    else:
+        flash("No token provided. Unauthorized access.", "error")
+        return redirect(url_for('error_page'))
 
     delete_picture(id)
 
