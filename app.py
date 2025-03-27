@@ -114,7 +114,6 @@ def logout():
     return resp
 
 # Route for login
-# Route for login
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -156,6 +155,20 @@ def login():
 # Route to delete user's profile picture
 @app.route('/delete/<id>', methods=['GET', 'POST'])
 def delete_picture(id):
+    token = request.cookies.get('jwt')
+    
+    if token:
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Unauthorized user"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Unauthorized user"}), 401
+        
+        if not payload['_id'] == id:
+            return jsonify({"error": "Unauthorized user"}), 403
+
     user = user_collection.find_one({"_id": ObjectId(id)})
     if user:
         picture = user.get('picture')
@@ -242,5 +255,3 @@ def getAllUsers():
 # Main entry point
 if __name__ == '__main__':
     app.run(debug=True)
-
-### TODO: Add max size capacity, delete images once we update user picture, add user count in login screen
