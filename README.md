@@ -12,7 +12,7 @@ This project is a **Flask-based RESTful API** that implements user authenticatio
 - **Error Handling**: Proper error messages and status codes for common issues (e.g., 400, 401, 404).
 
 ## Team Members
-1. **Peter Wong**
+1. **Peter Wongprasert**
 2. **Ian Gabriel Vista**
 
 ## Prerequisites
