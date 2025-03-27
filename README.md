@@ -22,11 +22,30 @@ Ensure you have the following installed:
 - **Flask**: A lightweight WSGI web application framework.
 - **Flask-PyMongo**: Flask extension to interact with MongoDB.
 
+#### Dependencies
+Flask==3.1.0                         # Core framework
+Flask-PyMongo==3.0.1                 # MongoDB integration
+pymongo==4.11.3                      # MongoDB driver
+PyJWT==2.9.0                         # JWT token encoding/decoding
+Werkzeug==3.1.3                      # Utility functions
+
 ## Setup Instructions
 
 ### Step 1: Clone the Repository
 Clone this repository to your local machine:
 
 ```bash
-git clone <repository-url>
-cd <repository-folder>
+  git clone <repository-url>
+```
+### Step 2: Serve MongoDB
+How to run locally:
+``` Powershell
+  cd "Path\to\mongod.exe"
+  .\mongod --dbpath "Path\to\MongoDB\data"
+```
+*Note: If you do not have a data folder for MongoDB you must manually create it
+
+### Step 3: Run app.py
+```bash
+  python app.py
+```
